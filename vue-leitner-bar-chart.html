@@ -5,7 +5,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Vue.js Leitner Bar Chart (just a proof of concept)</title>
+  <title>Vue.js Bar Chart</title>
 
   <!-- Bootstrap core CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" />
@@ -14,78 +14,126 @@
 
 
   <style>
-/* common */
-body { background:#f4f0e5; }
+    /* common */
+    body { background:#f4f0e5; }
 
-/* bootstrap overrides */
-.panel { background-color:#e7e1d3; border-color: #e7e1d3; }
-.panel-default > .panel-heading { background-color: #e7e1d3; }
+    /* bootstrap overrides */
+    .panel { 
+      background-color:#e7e1d3; 
+      border-color: #e7e1d3;
+    }
+    .panel-default > .panel-heading { 
+      background-color: #e7e1d3; 
+    }
+    /* bar chart component (root) */
+    .bar-chart_pane { 
+      background:#e7e1d3; 
+      padding:1em; 
+      border-radius:4px; 
+    }
 
-/* leitner chart component (root) */
-.leitner-chart_pane { background:#e7e1d3; padding:1em; border-radius:4px; }
+    .bar-chart_outer { 
+      display:table;
+      width:100%;
+      padding:30px 0 30px;
+    }
+    .bar-chart_outer .box  {
+      display:table-cell; 
+    }
 
-.leitner-chart_outer { display:table; width:100%; padding:30px 0 30px; }
-.leitner-chart_outer .box  { display:table-cell; }
+    .box_inner {
+      position:relative;
+      height:200px; /* */
+    }
 
-.box_inner {
-  position:relative;
-  height:200px; /* */
-}
+    /* the link */
+    .box .bar {
+      outline:none;
+    }
+    .box .bar:hover .val { 
+      font-weight:bold; 
+    }
 
-  /* the link */
-.box .bar { outline:none; }
-.box .bar:hover .val { font-weight:bold; }
+    /* two stacks per box */
+    .box .bar1 { 
+      position:absolute; 
+      left:10%;
+      bottom:0;
+      width:39%; 
+      background:#f8f8f8;
+    }
+    .box .bar2 { 
+      position:absolute;
+      left:51%;
+      bottom:0;
+      width:39%;
+      background:#f8c8f8;
+    }
 
-  /* two stacks per box */
-.box .bar1 { position:absolute; left:10%; bottom:0;   width:39%;   background:#f8f8f8; }
-.box .bar2 { position:absolute; left:51%; bottom:0;   width:39%;   background:#f8c8f8; }
+    .box .btm { 
+      position:absolute; 
+      bottom:0; 
+      left:10%; 
+      right:10%; 
+      background:#d2c9b7; 
+      height:4px; 
+    }
 
-.box .btm { position:absolute; bottom:0; left:10%; right:10%; background:#d2c9b7; height:4px; }
+    .box .lbl {
+      position:absolute; 
+      left:5%; 
+      right:5%; 
+      bottom:-31px;
+      margin-bottom:4px; 
+      color: #7d776a; 
+      font-size:1em; 
+      line-height:1.1em; 
+      white-space:nowrap; 
+      text-align:center;
+    }
+    .box .val {
+      position: absolute; 
+      left:0; 
+      top:-26px; 
+      width:100%;
+      padding: 0;
+      color:#444; 
+      font-weight:normal; 
+      white-space: nowrap; 
+      text-align:center;
+    }
+    .box .val-zero { 
+      color:#a09a8b; 
+      display:none; 
+    }
 
-.box .lbl {
-  position:absolute; left:5%; right:5%; bottom:-31px; /*width:100%; height:24px; */
-  margin-bottom:4px; 
-  color: #7d776a; font-size:1em; line-height:1.1em; white-space:nowrap; text-align:center;
-}
-.box .val {
-  position: absolute; left:0; top:-26px; width:100%;
-  padding: 0;
-  color:#444; font-weight:normal; white-space: nowrap; text-align:center;
-}
-.box .val-zero { color:#a09a8b; display:none; }
+</style>
 
-
-/* mobile quick fix?
-.box { min-width:100px; }
-.overflow-vp { overflow-x:scroll; }
- */
-
-  </style>
 </head>
 
 <body>
 
   <div class="container">
 
-    <h2>Leitner Bar Chart with Vue</h2>
+    <h2>bar Bar Chart with Vue</h2>
 
     <div id="app">
 
-      <div class="leitner-chart_pane overflow-vp">
-        <leitner-chart></leitner-chart>
+      <div class="bar-chart_pane overflow-vp">
+        <bar-chart></bar-chart>
       </div>
          
     </div>
       
   </div> <!-- /container -->
 
-<script type="text/x-template" id="leitner-chart-template">
+<script type="text/x-template" id="bar-chart-template">
 <div id="vue-really-likes-to-have-a-root-container">
-  <div class="leitner-chart_outer">
+  <div class="bar-chart_outer">
 
     <div v-for="(box, b) in boxes" class="box">
       <div class="box_inner">
-        <div class="lbl">{{ box_labels[b] }}</div>
+        <div class="lbl">{{ box[0].type }} & {{ box[1].type }}</div>
         <div class="btm"></div>
         <a href="#" @click.prevent="onClick($event)" class="bar bar1" :style="{
           height: getHeight(box[0]),
@@ -101,7 +149,6 @@ body { background:#f4f0e5; }
         </a>
       </div>
     </div>
-
   </div>
 
   <!-- test the dynamic aspect of the chart -->
@@ -120,97 +167,94 @@ body { background:#f4f0e5; }
 <script>
 "use strict";
 
-// backend php would generate this (for example, encoded json in a input["hidden"])
-var chart_data = {
-  // eight Leitner boxes, each box contains 2 piles, each pile has { value: ..., type: ... }
-  // first pile contains missed cards (failed) and new cards (new)
-  // 2nd box and higher have due cards (due) and scheduled cards (fresh)
-  "boxes":[
-    [
-      {
-        "value":5,
-        "type":"failed"
-      },
-      {
-        "value":11,
-        "type":"new"
-      }
-    ],
-    [
-      {
-        "value":16,
-        "type":"due"
-      },
-      {
-        "value":0,
-        "type":"fresh"
-      }
-    ],
-    [
-      {
-        "value":4,
-        "type":"due"
-      },
-      {
-        "value":0,
-        "type":"fresh"
-      }
-    ],
-    [
-      {
-        "value":9,
-        "type":"due"
-      },
-      {
-        "value":0,
-        "type":"fresh"
-      }
-    ],
-    [
-      {
-        "value":0,
-        "type":"due"
-      },
-      {
-        "value":0,
-        "type":"fresh"
-      }
-    ],
-    [
-      {
-        "value":0,
-        "type":"due"
-      },
-      {
-        "value":1,
-        "type":"fresh"
-      }
-    ],
-    [
-      {
-        "value":26,
-        "type":"due"
-      },
-      {
-        "value":0,
-        "type":"fresh"
-      }
-    ],
-    [
-      {
-        "value":4,
-        "type":"due"
-      },
-      {
-        "value":9,
-        "type":"fresh"
-      }
+  //TODO: break this out
+  var chart_data = {
+    // eight bar boxes, each box contains 2 piles, each pile has { value: ..., type: ... }
+    // first pile contains missed cards (failed) and new cards (new)
+    // 2nd box and higher have due cards (due) and scheduled cards (fresh)
+    "boxes":[
+      [
+        {
+          "value":5,
+          "type":"missed"
+        },
+        {
+          "value":11,
+          "type":"new"
+        }
+      ],
+      [
+        {
+          "value":16,
+          "type":"due"
+        },
+        {
+          "value":0,
+          "type":"scheduled"
+        }
+      ],
+      [
+        {
+          "value":4,
+          "type":"due"
+        },
+        {
+          "value":0,
+          "type":"scheduled"
+        }
+      ],
+      [
+        {
+          "value":9,
+          "type":"due"
+        },
+        {
+          "value":0,
+          "type":"scheduled"
+        }
+      ],
+      [
+        {
+          "value":0,
+          "type":"due"
+        },
+        {
+          "value":0,
+          "type":"scheduled"
+        }
+      ],
+      [
+        {
+          "value":0,
+          "type":"due"
+        },
+        {
+          "value":1,
+          "type":"scheduled"
+        }
+      ],
+      [
+        {
+          "value":26,
+          "type":"due"
+        },
+        {
+          "value":0,
+          "type":"scheduled"
+        }
+      ],
+      [
+        {
+          "value":4,
+          "type":"due"
+        },
+        {
+          "value":9,
+          "type":"scheduled"
+        }
+      ]
     ]
-  ]/*,
-  "url_study":  "\/koohii_dev.php\/study\/failedlist",
-  "url_new":    "\/koohii_dev.php\/review?type=untested",
-  "url_review": "\/koohii_dev.php\/review?type=expired"*/
-};
+  };
 
   var Helpers = {
     getRandomIntInclusive: function(min, max) {
@@ -220,7 +264,7 @@ var chart_data = {
     }
   };
 
-  Vue.component('leitner-chart', {
+  Vue.component('bar-chart', {
 
     data: function() {
       return {
@@ -288,7 +332,7 @@ var chart_data = {
     computed: {
       stacks: function() {
         console.log("... update property: stacks ...");
-        // reformat leitner data from 8 boxes to 16 stacks
+        // reformat bar data from 8 boxes to 16 stacks
         var bars = [];
         this.boxes.map( function(b) { bars.push(b[0], b[1]); });
         return bars;
@@ -302,7 +346,7 @@ var chart_data = {
       }
     },
 
-    template: '#leitner-chart-template'
+    template: '#bar-chart-template'
   });
 
   var vm = new Vue({
